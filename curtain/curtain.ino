@@ -2,57 +2,61 @@
 #include <WiFiNINA.h>
 #include "secrets.h"
 
-//WiFi login and connection credentials
+// WiFi login and connection credentials
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
 int status = WL_IDLE_STATUS;
 int wificonnect;
 WiFiClient wifiClient;
 
-//mqtt config and connection credentials
+// mqtt config and connection credentials
 const char broker[] = BROKER;
 int port = PORT;
 const char topic[] = "blinds";
-//set interval for sending messages (milliseconds)
+// set interval for sending messages (milliseconds)
 const long interval = 8000;
 unsigned long previousMillis = 0;
 int count = 0;
 bool firstRun = false;
 MqttClient mqttClient(wifiClient);
 
-//flex sensor config values
+// flex sensor config values
 const int FLEX_PIN = A0;
-const float VCC = 3.289;       // Measured voltage of Ardunio 5V line
-const float R_DIV = 100600.0;  //32670.0;//47500.0;  // Measured resistance of 3.3k resistor
+const float VCC = 3.289;      // Measured voltage of Ardunio 3.3V line on Arduino nano IoT
+const float R_DIV = 100600.0; // Measured resistance of 10k resistor
 // Upload the code, then try to adjust these values to more
 // accurately calculate bend degree.
-const float STRAIGHT_RESISTANCE = 1004;//855;  //998;//700.0;  // resistance when straight
-const float BEND_RESISTANCE = 934;//747;      //957;//1023.0;     // resistance at 90 deg
-
+const float STRAIGHT_RESISTANCE = 700.0; // 1004;//855;  //998;// // resistance when straight
+const float BEND_RESISTANCE = 1023.0;    // 934;//747;      //957;//    // resistance at 90 deg
 
 int state;
 
-//motor pins
+// motor pins
 const int motorPin = 3;
 
-void setup() {
+void setup()
+{
   // initialize serial communications
   Serial.begin(9600);
-  //configure WiFi
+  // configure WiFi
   wificonnect = configureWiFi();
-  //Configure MQTT
-  if (wificonnect == 1) {
+  // Configure MQTT
+  if (wificonnect == 1)
+  {
     configureMQTT();
-  } else {
+  }
+  else
+  {
     wificonnect = configureWiFi();
   }
-  //Set Flex sensor defaults
+  // Set Flex sensor defaults
   pinMode(FLEX_PIN, INPUT);
-  //set vibration pin
+  // set vibration pin
   pinMode(motorPin, OUTPUT);
 }
 
-void loop() {
+void loop()
+{
   mqttClient.poll();
 
   int flexADC = analogRead(FLEX_PIN);
@@ -67,37 +71,17 @@ void loop() {
                     0, 90.0);
   Serial.println("Bend: " + String(angle) + " degrees");
   Serial.println();
-  //flexR = measured resistance * (voltage/)
+  // flexR = measured resistance * (voltage/)
   bend(flexResistance, angle);
   delay(1500);
-  ///consider removing everything below this line
-
-  // int sensor, degrees;
-
-  // // read the voltage from the voltage divider (sensor plus resistor)
-  // sensor = analogRead(A0);
-
-  // // convert the voltage reading to inches
-  // // the first two numbers are the sensor values for straight (768) and bent (853)
-  // // the second two numbers are the degree readings we'll map that to (0 to 90 degrees)
-  // degrees = map(sensor, 700, 1023, 0, 180);
-  // // note that the above numbers are ideal, your sensor's values will vary
-  // // to improve the accuracy, run the program, note your sensor's analog values
-  // // when it's straight and bent, and insert those values into the above function.
-
-  // // print out the result
-  // Serial.print("analog input: ");
-  // Serial.print(sensor, DEC);
-  // Serial.print("   degrees: ");
-  // Serial.println(degrees, DEC);
-
-  // // pause before taking the next reading
-  // delay(100);
+  /// consider removing everything below this line
 }
 
-int configureWiFi() {
+int configureWiFi()
+{
 
-  if (WiFi.status() == WL_NO_MODULE) {
+  if (WiFi.status() == WL_NO_MODULE)
+  {
     Serial.println("Communication with WiFi module failed!");
     // don't continue
     while (true)
@@ -105,13 +89,15 @@ int configureWiFi() {
     return 0;
   }
   String fv = WiFi.firmwareVersion();
-  if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
+  if (fv < WIFI_FIRMWARE_LATEST_VERSION)
+  {
     Serial.println("Please upgrade the firmware");
     return 0;
   }
 
   // attempt to connect to WiFi network:
-  while (status != WL_CONNECTED) {
+  while (status != WL_CONNECTED)
+  {
     Serial.print("Attempting to connect to WPA SSID: ");
     Serial.println(ssid);
     // Connect to WPA/WPA2 network:
@@ -125,17 +111,19 @@ int configureWiFi() {
   return 1;
 }
 
-//mqtt configuration function is called in setup function once
-void configureMQTT() {
-  digitalWrite(motorPin, HIGH);  //vibrate
-  delay(1000);                   // delay one second
-  digitalWrite(motorPin, LOW);   //stop vibrating
-  delay(1000);                   //wait 50 seconds.
+// mqtt configuration function is called in setup function once
+void configureMQTT()
+{
+  digitalWrite(motorPin, HIGH); // vibrate
+  delay(1000);                  // delay one second
+  digitalWrite(motorPin, LOW);  // stop vibrating
+  delay(1000);                  // wait 50 seconds.
 
   Serial.print("Attempting to connect to the MQTT broker: ");
   Serial.println(broker);
   mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
-  if (!mqttClient.connect(broker, port)) {
+  if (!mqttClient.connect(broker, port))
+  {
     Serial.print("MQTT connection failed! Error code = ");
     Serial.println(mqttClient);
 
@@ -147,43 +135,49 @@ void configureMQTT() {
   Serial.println();
 }
 
-//handle all flex sensor folds
-void bend(float resistance, float angle) {
+// handle all flex sensor folds
+void bend(float resistance, float angle)
+{
   unsigned long currentMillis = millis();
 
-  if (currentMillis - previousMillis >= interval) {
+  if (currentMillis - previousMillis >= interval)
+  {
     // save the last time a message was sent
     previousMillis = currentMillis;
 
     Serial.print("Sending message to topic: ");
     Serial.println(topic);
-     Serial.println("0. Resistance: " + String(resistance) + " - " +String(angle) + " - State: " + String(state));
-//FULLY STRAIGHT Resistance between 20-21k
-    if (resistance >= 20000.0 && resistance < 21000  && angle >= 0 && angle <=10) {
-   // if(flex >= 850 && flex <= 890){
-      //message to be sent is 0, therefore check current value of state
-        Serial.println("1. Resistance: " + String(resistance) + " - " +String(angle) + " - State: " + String(state));
-        Serial.print("Making MQTT request state 0");
-        //send mqtt request
-        // send message, the Print interface can be used to set the message contents
-        mqttClient.beginMessage(topic);
-        mqttClient.print(0);
-        mqttClient.endMessage();
-    }
-    //slightly bent
-    if (resistance > 21000.0 && angle > 10) {
-    
-        Serial.println("2. Resistance: " + String(resistance) + " - " +String(angle) + " - State: " + String(state));
-        Serial.print("Making MQTT request state 5");
-        mqttClient.beginMessage(topic);
-        mqttClient.print(5);
-        mqttClient.endMessage();
-        //set state to 0 again
+    Serial.println("0. Resistance: " + String(resistance) + " - " + String(angle) + " - State: " + String(state));
 
+    // FULLY STRAIGHT Resistance between 20-21k? Depends on resistor used
+    // when conditions are met, a MQTT Message is sent to HomeAssistant which then handles the curtain control and opening etc
+    if (resistance >= 20000.0 && resistance < 21000 && angle >= 0 && angle <= 10)
+    {
+      // if(flex >= 850 && flex <= 890){
+      // message to be sent is 0, therefore check current value of state
+      Serial.println("1. Resistance: " + String(resistance) + " - " + String(angle) + " - State: " + String(state));
+      Serial.print("Making MQTT request state 0");
+      // send mqtt request
+      //  send message, the Print interface can be used to set the message contents
+      mqttClient.beginMessage(topic);
+      mqttClient.print(0);
+      mqttClient.endMessage();
+    }
+    // slightly bent
+    if (resistance > 21000.0 && angle > 10)
+    {
+
+      Serial.println("2. Resistance: " + String(resistance) + " - " + String(angle) + " - State: " + String(state));
+      Serial.print("Making MQTT request state 5");
+      mqttClient.beginMessage(topic);
+      mqttClient.print(5);
+      mqttClient.endMessage();
+      // set state to 0 again
     }
   }
 }
 
-//vibrate
-void vibrate(int duration) {
+// vibrate
+void vibrate(int duration)
+{
 }
