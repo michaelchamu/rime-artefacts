@@ -1,4 +1,7 @@
 */secret*
 .vscode
 .DS_Store
-coaster/secret*
+coaster/secrets.h
+curtain/secrets.h
+coaster/.vscode
+curtain/.vscode
