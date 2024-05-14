@@ -4,7 +4,7 @@
 
 #include <Wire.h>
 #include <Trill.h>
-#include <WiFiNINA.h>
+#include <WiFi.h>
 #include "secrets.h"
 #include <ArduinoHA.h>
 #include <ArduinoMqttClient.h>
@@ -14,11 +14,12 @@
 byte mac[] = { 0x00, 0x10, 0xFA, 0x6E, 0x38, 0x4A };
 
 WiFiClient client;
-HADevice device(mac, sizeof(mac));
+//HADevice device(mac, sizeof(mac));
 MqttClient mqttClient(client);
 const char broker[] = "192.168.0.213";
 int port = 1883;
-const char topic[] = "power";
+const char power[] = "power";
+const char color[] = "color";
 
 Trill trillSensor;
 
@@ -117,34 +118,89 @@ void loop() {
     // transmit signal
     Serial.println("0 was tapped");
   }
-  if (isTapped(10)) {
+  if (isTapped(1)) {
     // check status of bulb? on/off
     // if off, set on, if on, set off
     // transmit signal
-    Serial.println("14 was tapped");
+    Serial.println("2 was tapped");
   }
-  if (isTapped(15)) {
+  if (isTapped(2)) {
     // check status of bulb? on/off
     // if off, set on, if on, set off
     // transmit signal
-    Serial.println("14 was tapped");
+    Serial.println("2 was tapped");
   }
-
+  if (isTapped(3)) {
+    // check status of bulb? on/off
+    // if off, set on, if on, set off
+    // transmit signal
+    Serial.println("3 was tapped");
+  }
+  if (isTapped(4)) {
+    // check status of bulb? on/off
+    // if off, set on, if on, set off
+    // transmit signal
+    Serial.println("4 was tapped");
+  }
+  if (isTapped(6)) {
+    // check status of bulb? on/off
+    // if off, set on, if on, set off
+    // transmit signal
+    Serial.println("6 was tapped");
+  }
   // Example of tapping pin 26 is tapped while pin 0 is held
-  if (isTapped(26) && isBeingTouched(0)) {
-    Serial.println("0 is being held and 26 was tapped");
-  }
+  // if (isTapped(26) && isBeingTouched(0)) {
+  //   Serial.println("0 is being held and 26 was tapped");
+  // }
 
   // Example of double tapping on pin 27
-  if (isDoubleTapped(27)) {
-    Serial.println("27 was double tapped");
-  }
+  // if (isDoubleTapped(27)) {
+  //   Serial.println("27 was double tapped");
+  // }
 
   // Example of pin 29 being held for 1500 ms (1.5 seconds)
-  if (isHeldTimer(29, 1500)) {
-    Serial.println("29 was held to time");
+  // if (isHeldTimer(29, 1500)) {
+  //   Serial.println("29 was held to time");
+  // }
+  if (isTapped(7)) {
+    Serial.println("7 tapped");
   }
-
+  if (isTapped(9)) {
+    Serial.println("9 tapped");
+  }
+  if (isTapped(11)) {
+    Serial.println("11 tapped");
+  }
+  if (isTapped(12)) {
+    Serial.println("12 tapped");
+  }
+  if (isTapped(14)) {
+    Serial.println("14 tapped");
+  }
+  if (isTapped(15)) {
+    Serial.println("15 tapped");
+  }
+  if (isTapped(17)) {
+    Serial.println("17 tapped");
+  }
+  if (isTapped(18)) {
+    Serial.println("18 tapped");
+  }
+  if (isTapped(19)) {
+    Serial.println("19 tapped");
+  }
+  if (isTapped(21)) {
+    Serial.println("21 tapped");
+  }
+  if (isTapped(22)) {
+    Serial.println("22 tapped");
+  }
+  if (isTapped(24)) {
+    Serial.println("24 tapped");
+  }
+  if (isTapped(29)) {
+    Serial.println("28 tapped");
+  }
   //-----------------------------------------------------------------------------
   // ^^^^^^^ Only change code above here ^^^^^^^
   //-----------------------------------------------------------------------------
@@ -165,19 +221,94 @@ bool isTapped(int pin) {
     // switch on lights
     //check current status of light from mqtt
     switch (pin) {
-      case 0:
-        mqttClient.beginMessage(topic);
-        mqttClient.print(6);
+      case 0:  //pink
+        mqttClient.beginMessage(color);
+        mqttClient.print(0);
         mqttClient.endMessage();
         break;
-      case 10:  //change white
-        mqttClient.beginMessage("color");
+      case 1:  //brown
+        mqttClient.beginMessage(color);
+        mqttClient.print(1);
+        mqttClient.endMessage();
+        break;
+      case 2:  //olive green
+        mqttClient.beginMessage(color);
+        mqttClient.print(2);
+        mqttClient.endMessage();
+        break;
+      case 3:  // maroon
+        mqttClient.beginMessage(color);
+        mqttClient.print(3);
+        mqttClient.endMessage();
+        break;
+      case 4:  //yellow
+        mqttClient.beginMessage(color);
         mqttClient.print(4);
         mqttClient.endMessage();
         break;
-      case 15:  //change white
-        mqttClient.beginMessage("color");
-        mqttClient.print(3);
+      case 6:  //power on/off
+        mqttClient.beginMessage(power);
+        mqttClient.print(6);
+        mqttClient.endMessage();
+        break;
+      case 7:  //orange
+        mqttClient.beginMessage(color);
+        mqttClient.print(7);
+        mqttClient.endMessage();
+        break;
+      case 9:  //red
+        mqttClient.beginMessage(color);
+        mqttClient.print(9);
+        mqttClient.endMessage();
+        break;
+      case 11:  //pink
+        mqttClient.beginMessage(color);
+        mqttClient.print(0);
+        mqttClient.endMessage();
+        break;
+      case 12:  //nsvy blue
+        mqttClient.beginMessage(color);
+        mqttClient.print(12);
+        mqttClient.endMessage();
+        break;
+      case 14:  //sky blue
+        mqttClient.beginMessage(color);
+        mqttClient.print(14);
+        mqttClient.endMessage();
+        break;
+      case 15:  //brown
+        mqttClient.beginMessage(color);
+        mqttClient.print(1);
+        mqttClient.endMessage();
+        break;
+      case 17:  //white
+        mqttClient.beginMessage(color);
+        mqttClient.print(17);
+        mqttClient.endMessage();
+        break;
+      case 18:  //touquous
+        mqttClient.beginMessage(color);
+        mqttClient.print(18);
+        mqttClient.endMessage();
+        break;
+      case 19:  //green
+        mqttClient.beginMessage(color);
+        mqttClient.print(19);
+        mqttClient.endMessage();
+        break;
+      case 21:  //orange
+        mqttClient.beginMessage(color);
+        mqttClient.print(7);
+        mqttClient.endMessage();
+        break;
+      case 22:  //purple
+        mqttClient.beginMessage(color);
+        mqttClient.print(22);
+        mqttClient.endMessage();
+        break;
+      case 24:  //orange
+        mqttClient.beginMessage(color);
+        mqttClient.print(7);
         mqttClient.endMessage();
         break;
     }
