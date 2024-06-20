@@ -1,11 +1,11 @@
 #include <ArduinoMqttClient.h>
 #include <WiFiNINA.h>
 #include "secrets.h"
-#include "Rotary.h"
 
-#define ROTARY_PIN1	2
-#define ROTARY_PIN2	3
-Rotary r = Rotary(ROTARY_PIN1, ROTARY_PIN2);
+int sensorPin = A0;    // select the input pin for the potentiometer
+int sensorValue = 0;  // variable to store the value coming from the sensor
+int previousValue = 0;
+int currVal = 0, pastVal = 0;
 // WiFi login and connection credentials
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
@@ -16,59 +16,88 @@ WiFiClient wifiClient;
 // mqtt config and connection credentials
 const char broker[] = BROKER;
 int port = PORT;
-const char topic[] = "blinds";
+const char topic[] = "***REMOVED***-run"; //"blinds";
 
 MqttClient mqttClient(wifiClient);
 
 void setup() {
   // initialize serial communications
   Serial.begin(9600);
-  // configure WiFi
-  wificonnect = configureWiFi();
-  // Configure MQTT
-  if (wificonnect == 1) {
-    configureMQTT();
-  } else {
-    wificonnect = configureWiFi();
+  if (WiFi.status() == WL_NO_MODULE) {
+    Serial.println("Communication with WiFi module failed!");
+    // don't continue
+    while (true)
+      ;
   }
+  String fv = WiFi.firmwareVersion();
+  if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
+    Serial.println("Please upgrade the firmware");
+    
+  }
+
+  // attempt to connect to WiFi network:
+  while (status != WL_CONNECTED) {
+    Serial.print("Attempting to connect to WPA SSID: ");
+    Serial.println(ssid);
+    // Connect to WPA/WPA2 network:
+    status = WiFi.begin(ssid, pass);
+
+    // wait 10 seconds for connection:
+    delay(10000);
+  }
+  // you're connected now, so print out the data:
+  Serial.print("You're connected to the network");
+  
+   Serial.print("Attempting to connect to the MQTT broker: ");
+  Serial.println(broker);
+  mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
+  if (!mqttClient.connect(broker, port)) {
+    Serial.print("MQTT connection failed! Error code = ");
+    Serial.println(mqttClient);
+
+    while (1)
+      ;
+  }
+
+  Serial.println("You're connected to the MQTT broker!");
+  Serial.println();
+  // configure WiFi
+  // wificonnect = configureWiFi();
+  // // Configure MQTT
+  // if (wificonnect == 1) {
+  //   configureMQTT();
+  // } else {
+  //   wificonnect = configureWiFi();
+  // }
   //configure rotary knob
-  r.setChangedHandler(rotate);
-  r.setLeftRotationHandler(showDirection);
-  r.setRightRotationHandler(showDirection);
+  // r.setChangedHandler(rotate);
+  // r.setLeftRotationHandler(showDirection);
+  // r.setRightRotationHandler(showDirection);
 }
 
 void loop() {
   mqttClient.poll();
 
-  r.loop();
-  // read the value from the sensor:
-  // sensorValue = map(analogRead(sensorPin), 0, 1023, 0, 255);
+ sensorValue = map(analogRead(sensorPin), 0, 1023, 0, 255);
+// Serial.println(sensorValue);
 
-  // if (sensorValue > 0 && sensorValue <= 134) {
-  //   currVal = 1;
-   
-  // }
-  // if (sensorValue >= 135 && sensorValue <= 165) {
-  //   currVal = 2;
-    
-  // }
-  // if (sensorValue >= 166 && sensorValue <= 225) {
-  //   currVal = 3;
-  // }
-  // if (sensorValue >= 226 && sensorValue <= 255) {
-  //   currVal = 4;
-  // }
-
-
-  // // check if the sensor value has changed since the last reading
-  // if (currVal != pastVal) {
-  //   // update the previous value
-  //   pastVal = currVal;
-  //   sendSignal(pastVal);
-  //   // display the current value
-  //   Serial.println(pastVal);
-   
-  // }
+  if(sensorValue > 0 && sensorValue <= 134)
+    currVal = 1;
+  if(sensorValue >= 135 && sensorValue <= 165)
+    currVal = 2;
+  if(sensorValue >= 166 && sensorValue <= 225)
+    currVal = 3;
+  if(sensorValue >= 226 && sensorValue <= 255)
+    currVal = 4;
+  if (currVal != pastVal) {
+    // update the previous value
+    pastVal = currVal;
+    // display the current value
+    Serial.println(pastVal);
+     mqttClient.beginMessage(topic);
+     mqttClient.print(pastVal);
+     mqttClient.endMessage();
+  }
 }
 
 int configureWiFi() {
@@ -132,13 +161,29 @@ void configureMQTT() {
 // on change
 void rotate(Rotary& r) {
    
-   if(r.getPosition() > 0 && r.getPosition() <= 5)
+   //todo uncomment
+   Serial.println(r.getPosition());
+    if(r.getPosition() > 0 && r.getPosition() <= 5)
    {
     Serial.println(r.getPosition());
-    mqttClient.beginMessage("blinds");
-    mqttClient.print(4);
+    mqttClient.beginMessage("***REMOVED***-stop");
+    mqttClient.print("hello");
     mqttClient.endMessage();
    }
+    else if(r.getPosition() > 5 && r.getPosition() <= 10)
+   {
+    Serial.println(r.getPosition());
+    mqttClient.beginMessage("***REMOVED***-run");
+    mqttClient.print("nope");
+    mqttClient.endMessage();
+   }
+  //  if(r.getPosition() > 0 && r.getPosition() <= 5)
+  //  {
+  //   Serial.println(r.getPosition());
+  //   // mqttClient.beginMessage("blinds");
+  //   // mqttClient.print(4);
+  //   // mqttClient.endMessage();
+  //  }
     // mqttClient.beginMessage("blinds");
     // mqttClient.print(r.getPosition());
     // mqttClient.endMessage();
