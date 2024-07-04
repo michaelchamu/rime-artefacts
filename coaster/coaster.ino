@@ -8,8 +8,10 @@
 #include "secrets.h"
 #include <ArduinoHA.h>
 #include <ArduinoMqttClient.h>
+#include <driver/mcpwm.h>  //vibration library
 
 #define BROKER_ADDR IPAddress(127, 0, 0, 1)
+#define MOTOR_GPIO 3  // Define the GPIO pin connected to the vibromotor
 
 byte mac[] = { 0x00, 0x10, 0xFA, 0x6E, 0x38, 0x4A };
 
@@ -37,6 +39,35 @@ char ssid[] = SECRET_SSID;    // your network SSID (name)
 char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
 int status = WL_IDLE_STATUS;  // the WiFi radio's status
 
+void initWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(SECRET_SSID, SECRET_PASS);
+  Serial.print("Connecting to WiFi ..");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
+    delay(1000);
+  }
+  Serial.println("You're connected to the network");
+  Serial.println();
+  Serial.println(WiFi.localIP());
+}
+
+// void initVibration(){
+//   // Initialize MCPWM unit
+//   mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, MOTOR_GPIO);
+
+//   // Configure MCPWM settings
+//   mcpwm_config_t pwm_config;
+//   pwm_config.frequency = 1000;    // Frequency in Hz
+//   pwm_config.cmpr_a = 0;          // Duty cycle of PWMxA = 0
+//   pwm_config.cmpr_b = 0;          // Duty cycle of PWMxB = 0
+//   pwm_config.counter_mode = MCPWM_UP_COUNTER; // Up counting mode
+//   pwm_config.duty_mode = MCPWM_DUTY_MODE_0;   // Active HIGH
+
+//   // Initialize MCPWM with the above configuration
+//   mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &pwm_config);
+// }
+
 void setup() {
   // Initialise serial and touch sensor
   Serial.begin(9600);
@@ -44,16 +75,23 @@ void setup() {
   delay(2000);
 
   // connect to wifi
-  Serial.print("Attempting to connect to WPA SSID: ");
-  Serial.println(ssid);
-  while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
-    // failed, retry
-    Serial.print(".");
-    delay(5000);
-  }
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
 
-  Serial.println("You're connected to the network");
-  Serial.println();
+  initWiFi();
+  mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, MOTOR_GPIO);
+
+  // Configure MCPWM settings
+  mcpwm_config_t pwm_config;
+  pwm_config.frequency = 1000;                 // Frequency in Hz
+  pwm_config.cmpr_a = 0;                       // Duty cycle of PWMxA = 0
+  pwm_config.cmpr_b = 0;                       // Duty cycle of PWMxB = 0
+  pwm_config.counter_mode = MCPWM_UP_COUNTER;  // Up counting mode
+  pwm_config.duty_mode = MCPWM_DUTY_MODE_0;    // Active HIGH
+
+  // Initialize MCPWM with the above configuration
+  mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &pwm_config);
 
   Serial.print("Attempting to connect to the MQTT broker: ");
   Serial.println(broker);
@@ -116,6 +154,7 @@ void loop() {
     // check status of bulb? on/off
     // if off, set on, if on, set off
     // transmit signal
+
     Serial.println("0 was tapped");
   }
   if (isTapped(1)) {
@@ -211,6 +250,8 @@ bool isBeingTouched(int pin) {
 }
 
 bool isTapped(int pin) {
+  //
+
   // the sensor was touched but has just been released
   // (no longer being touched)
   // and it was touched for less than a half second (500 ms)
@@ -222,91 +263,109 @@ bool isTapped(int pin) {
     //check current status of light from mqtt
     switch (pin) {
       case 0:  //pink
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(0);
         mqttClient.endMessage();
         break;
       case 1:  //brown
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(1);
         mqttClient.endMessage();
         break;
       case 2:  //olive green
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(2);
         mqttClient.endMessage();
         break;
       case 3:  // maroon
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(3);
         mqttClient.endMessage();
         break;
       case 4:  //yellow
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(4);
         mqttClient.endMessage();
         break;
       case 6:  //power on/off
+        vibrate(0);
         mqttClient.beginMessage(power);
         mqttClient.print(6);
         mqttClient.endMessage();
         break;
       case 7:  //orange
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(7);
         mqttClient.endMessage();
         break;
       case 9:  //red
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(9);
         mqttClient.endMessage();
         break;
       case 11:  //pink
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(0);
         mqttClient.endMessage();
         break;
       case 12:  //nsvy blue
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(12);
         mqttClient.endMessage();
         break;
       case 14:  //sky blue
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(14);
         mqttClient.endMessage();
         break;
       case 15:  //brown
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(1);
         mqttClient.endMessage();
         break;
       case 17:  //white
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(17);
         mqttClient.endMessage();
         break;
       case 18:  //touquous
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(18);
         mqttClient.endMessage();
         break;
       case 19:  //green
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(19);
         mqttClient.endMessage();
         break;
       case 21:  //orange
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(7);
         mqttClient.endMessage();
         break;
       case 22:  //purple
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(22);
         mqttClient.endMessage();
         break;
       case 24:  //orange
+        vibrate(1);
         mqttClient.beginMessage(color);
         mqttClient.print(7);
         mqttClient.endMessage();
@@ -388,6 +447,24 @@ void getSensorData() {
       touchTimers[pin] = currTime;
     }
   }
+}
+
+void vibrate(int state) {
+  // Set duty cycle for PWM signal
+
+  mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 100);
+  // Apply the duty cycle
+  mcpwm_set_duty_type(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, MCPWM_DUTY_MODE_0);
+  if (state == 0)
+    delay(700);  // Wait for 1000ms
+  else
+    delay(200);
+  mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 0);
+  mcpwm_set_duty_type(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, MCPWM_DUTY_MODE_0);
+  if (state == 0)
+    delay(700);  // Wait for 1000ms
+  else
+    delay(200);
 }
 
 void printSensorData() {
