@@ -1,6 +1,7 @@
 
 #include <ArduinoMqttClient.h>
 #include <WiFiNINA.h>
+#include <Arduino_MultiWiFi.h>
 #include "secrets.h"
 #include "Adafruit_DRV2605.h"
 
@@ -11,16 +12,11 @@ int sensorValue = 0, pastSensorValue = 0;  // variable to store the value coming
 int previousValue = 0;
 int currVal = 0, pastVal = 0;
 unsigned long currentTime = millis();
-long previousMillis = 0; 
+long previousMillis = 0;
 long interval = 1000;
-// WiFi login and connection credentials
 
-char ssid[] = SECRET_SSID;
-char pass[] = SECRET_PASS;
-int status = WL_IDLE_STATUS;
-int wificonnect;
 WiFiClient wifiClient;
-
+MultiWiFi multi;
 
 // mqtt config and connection credentials
 const char broker[] = BROKER;
@@ -30,6 +26,14 @@ const char topic[] = "blinds";
 MqttClient mqttClient(wifiClient);
 
 void setup() {
+  multi.add(SECRET_SSID, SECRET_PASS);
+  multi.add(OFFIS_SECRET_SSID, OFFIS_SECRET_PASS);
+  if (multi.run() == WL_CONNECTED) {
+    Serial.print("Successfully connected to network: ");
+    Serial.println(WiFi.SSID());
+  } else {
+    Serial.println("Failed to connect to a WiFi network");
+  }
   // initialize serial communications
   Serial.begin(9600);
 
@@ -44,42 +48,37 @@ void setup() {
   if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
     Serial.println("Please upgrade the firmware");
   }
-
-  // attempt to connect to WiFi network:
-  while (status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to WPA SSID: ");
-    Serial.println(ssid);
-    // Connect to WPA/WPA2 network:
-    status = WiFi.begin(ssid, pass);
-
-    // wait 10 seconds for connection:
-    delay(10000);
-  }
   // you're connected now, so print out the data:
   Serial.print("You're connected to the network");
+  if (WiFi.SSID() == SECRET_SSID) {
+    Serial.print("Attempting to connect to the MQTT broker: ");
+    Serial.println(BROKER);
+    mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
+    if (!mqttClient.connect(BROKER, port)) {
+      Serial.print("MQTT connection failed! Error code = ");
+      Serial.println(mqttClient);
 
-  Serial.print("Attempting to connect to the MQTT broker: ");
-  Serial.println(broker);
-  mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
-  if (!mqttClient.connect(broker, port)) {
-    Serial.print("MQTT connection failed! Error code = ");
-    Serial.println(mqttClient);
+      while (1)
+        ;
+    }
 
-    while (1)
-      ;
+    Serial.println("You're connected to the MQTT broker!");
+    Serial.println();
+  } else {
+    Serial.print("Attempting to connect to the MQTT broker: ");
+    Serial.println(OFFIS_BROKER);
+    mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
+    if (!mqttClient.connect(OFFIS_BROKER, port)) {
+      Serial.print("MQTT connection failed! Error code = ");
+      Serial.println(mqttClient);
+
+      while (1)
+        ;
+    }
+
+    Serial.println("You're connected to the MQTT broker!");
+    Serial.println();
   }
-
-  Serial.println("You're connected to the MQTT broker!");
-  Serial.println();
-
-  // configure WiFi
-  // wificonnect = configureWiFi();
-  // // Configure MQTT
-  // if (wificonnect == 1) {
-  //   configureMQTT();
-  // } else {
-  //   wificonnect = configureWiFi();
-  // }
 
   if (!drv.begin()) {
     Serial.println("Could not find DRV2605");
