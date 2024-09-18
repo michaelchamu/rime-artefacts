@@ -1,63 +1,70 @@
 #include <BleKeyboard.h>  // Include the BLE keyboard library
 #include <Wire.h>
-#include "Adafruit_DRV2605.h"
 
-BleKeyboard bleKeyboard("ESP32 Volume Control", "ESP32 Manufacturer", 100);  // Initialize BLE keyboard with device name and other parameters
+BleKeyboard bleKeyboard("ESP32 Volume", "ESP32 Manufacturer", 100);  // Initialize BLE keyboard with device name and other parameters
+Trill trillSensor;
 
-int buttonState1 = 0;  // Variable for reading the status of the button1
-int buttonState2 = 0;  // Variable for reading the status of the button2
+const unsigned int NUM_TOTAL_PADS = 30;
+CustomSlider::WORD rawData[NUM_TOTAL_PADS];
+
+const uint8_t sliderNumPads = 30;
+
+uint8_t sliderPads[sliderNumPads] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 };
+const unsigned int numSliders = 1;
+CustomSlider slider;
+int lastTouched = 0;
 
 void setup() {
   Serial.begin(115200);
 
-  bleKeyboard.begin();  // Start BLE keyboard
-
-  if (!drv.begin()) {
-    Serial.println("Could not find DRV2605");
-    while (1) delay(10);
+  int ret;
+  while (trillSensor.setup(Trill::TRILL_CRAFT)) {
+    Serial.println("failed to initialise trillSensor");
+    Serial.println("Retrying...");
+    delay(100);
   }
+  Serial.println("Success initialising trillSensor");
+  trillSensor.setMode(Trill::DIFF);
+  // We recommend a prescaler value of 4
+  trillSensor.setPrescaler(4);
+  // Experiment with this value to avoid corss talk between sliders if they are position close together
+  trillSensor.setNoiseThreshold(200);
 
-  drv.selectLibrary(1);
-
-  // I2C trigger by sending 'go' command
-  // default, internal trigger when sending GO command
-  drv.setMode(DRV2605_MODE_INTTRIG);
+  bleKeyboard.begin();  // Start BLE keyboard
 }
 
 void loop() {
-  if (bleKeyboard.isConnected()) {  // Check if BLE is connected to the phone
-
-    if (touchRead(T1) > 120000) {  // Check if button1 is pressed
-      Serial.println("Volume Up");
-      bleKeyboard.write(KEY_MEDIA_VOLUME_UP);  // Send volume up command
-      drv.setWaveform(0, 82);                  // play effect
-      drv.setWaveform(1, 0);                   // end waveform
-
-      // play the effect!
-      drv.go();
-      delay(200);  // Delay to debounce button
-    }
-
-    if (touchRead(T2) > 120000) {  // Check if button2 is pressed
-      Serial.println("Volume Down");
-      bleKeyboard.write(KEY_MEDIA_VOLUME_DOWN);  // Send volume down command
-       drv.setWaveform(0, 71);                  // play effect
-      drv.setWaveform(1, 0);                   // end waveform
-
-      // play the effect!
-      drv.go();
-      delay(200);                                // Delay to debounce button
-    }
+  // Read 20 times per second
+  delay(50);
+  if (!trillSensor.requestRawData()) {
+    Serial.println("Failed reading from device. Is it disconnected?");
+    return setup();
   }
-  delay(10);  // Short delay to prevent overwhelming the loop
+  if (bleKeyboard.isConnected()) {
+    unsigned n = 0;
+    // read all the data from the device into a local buffer
+    while (trillSensor.rawDataAvailable() > 0 && n < NUM_TOTAL_PADS) {
+      rawData[n++] = trillSensor.rawDataRead();
+    }
+    for (uint8_t n = 0; n < numSliders; ++n) {
+      // have each custom slider process the raw data into touches
+      slider.process(rawData);
+      if (slider.getNumTouches() > 0) {
+        for (int i = 0; i < slider.getNumTouches(); i++) {
+          if (lastTouched > slider.touchLocation(i)) {
+            Serial.println("Volume Up");
+            bleKeyboard.write(KEY_MEDIA_VOLUME_UP);
+            
+          } else if (lastTouched < slider.touchLocation(i)) {
+            Serial.println("Volume Down");
+            bleKeyboard.write(KEY_MEDIA_VOLUME_DOWN);
+          } else
+            Serial.println("No change");
+          lastTouched = slider.touchLocation(i);
+        }
+      }
+    }
+    Serial.println("");
+  } 
 }
 
-void vibrate(int effect) {
-  //if lowering volume, vibrate from high pitch going lower
-  //if increasing volume, vibrate from low pitch going higher
-  drv.setWaveform(0, effect);  // play effect
-  drv.setWaveform(1, 0);       // end waveform
-
-  // play the effect!
-  drv.go();
-}
