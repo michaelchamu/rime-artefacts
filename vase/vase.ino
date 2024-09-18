@@ -1,5 +1,11 @@
+#include <Trill.h>
 #include <BleKeyboard.h>  // Include the BLE keyboard library
 #include <Wire.h>
+#define motorPin A0
+
+unsigned long vibrationStartTime = 0;
+unsigned long vibrationDuration = 10; // Vibration duration in milliseconds (1 second)
+bool isVibrating = false;
 
 BleKeyboard bleKeyboard("ESP32 Volume", "ESP32 Manufacturer", 100);  // Initialize BLE keyboard with device name and other parameters
 Trill trillSensor;
@@ -15,10 +21,11 @@ CustomSlider slider;
 int lastTouched = 0;
 
 void setup() {
+  slider.setup(sliderPads, sliderNumPads);
   Serial.begin(115200);
 
   int ret;
-  while (trillSensor.setup(Trill::TRILL_CRAFT)) {
+  while (trillSensor.setup(Trill::TRILL_FLEX)) {
     Serial.println("failed to initialise trillSensor");
     Serial.println("Retrying...");
     delay(100);
@@ -29,7 +36,7 @@ void setup() {
   trillSensor.setPrescaler(4);
   // Experiment with this value to avoid corss talk between sliders if they are position close together
   trillSensor.setNoiseThreshold(200);
-
+  pinMode(motorPin, OUTPUT);
   bleKeyboard.begin();  // Start BLE keyboard
 }
 
@@ -54,10 +61,12 @@ void loop() {
           if (lastTouched > slider.touchLocation(i)) {
             Serial.println("Volume Up");
             bleKeyboard.write(KEY_MEDIA_VOLUME_UP);
-            
+            startVibration(vibrationDuration);
+           // increase();
           } else if (lastTouched < slider.touchLocation(i)) {
             Serial.println("Volume Down");
             bleKeyboard.write(KEY_MEDIA_VOLUME_DOWN);
+            startVibration(vibrationDuration);
           } else
             Serial.println("No change");
           lastTouched = slider.touchLocation(i);
@@ -65,6 +74,21 @@ void loop() {
       }
     }
     Serial.println("");
+    updateVibration();
   } 
 }
 
+void startVibration(unsigned long duration) {
+  digitalWrite(motorPin, HIGH);     // Turn on the vibration motor
+  vibrationStartTime = millis();        // Store the current time
+  vibrationDuration = duration;         // Set the duration for vibration
+  isVibrating = true;                // Set the flag to indicate vibration is on
+}
+
+void updateVibration() {
+  // If vibration is active and the duration has passed, stop the motor
+  if (isVibrating && (millis() - vibrationStartTime >= vibrationDuration)) {
+    digitalWrite(motorPin, LOW);    // Turn off the vibration motor
+    isVibrating = false;                // Reset the flag
+  }
+}
