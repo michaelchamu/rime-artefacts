@@ -201,22 +201,16 @@ bool isBeingTouched(int pin) {
 
 bool isTapped(int pin) {
   // the sensor was touched but has just been released
-  // (no longer being touched)
   // and it was touched for less than a half second (500 ms
  
   unsigned long elapsedTime = millis() - touchTimers[pin];
   while (!sensorTouches[pin] && prevSensorTouches[pin] && elapsedTime < 500) {
-   // Serial.println("Tapped inner ");
     startVibration(vibrationDuration);
     timeLastTap[pin] = millis();
 
     mqttClient.beginMessage(color);
     mqttClient.print(pin);
     mqttClient.endMessage();
-    //Serial.println("Message sent tap, release ");
-    //send mqtt request here
-    // switch on lights
-    //check current status of light from mqtt
     return true; 
   }
   // otherwise return false 
