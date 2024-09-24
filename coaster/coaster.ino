@@ -173,6 +173,8 @@ void loop() {
   if (isTapped(22)) 
   if (isTapped(24)) 
   if (isTapped(29))
+  //check for and stop vibration
+  updateVibration();
   // Example of tapping pin 26 is tapped while pin 0 is held
   // if (isTapped(26) && isBeingTouched(0)) {
   //   Serial.println("0 is being held and 26 was tapped");
@@ -191,11 +193,6 @@ void loop() {
   //-----------------------------------------------------------------------------
   // ^^^^^^^ Only change code above here ^^^^^^^
   //-----------------------------------------------------------------------------
-    // If vibration is active and the duration has passed, stop the motor
-  if (isVibrating && (millis() - vibrationStartTime >= vibrationDuration)) {
-    digitalWrite(motorPin, LOW);    // Turn off the vibration motor
-    isVibrating = false;                // Reset the flag
-  }
 }
 
 bool isBeingTouched(int pin) {
@@ -233,7 +230,6 @@ bool isDoubleTapped(int pin) {
   unsigned long elapsedTime = millis() - timeLastTap[pin];
 
   if (isTapped(pin) && elapsedTime < 400) {
-    // Serial.println("Double Tapped Inner");
       startVibration(300);
       mqttClient.beginMessage(power);
       mqttClient.print(6);
