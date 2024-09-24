@@ -202,9 +202,8 @@ bool isBeingTouched(int pin) {
 bool isTapped(int pin) {
   // the sensor was touched but has just been released
   // and it was touched for less than a half second (500 ms
- 
   unsigned long elapsedTime = millis() - touchTimers[pin];
-  while (!sensorTouches[pin] && prevSensorTouches[pin] && elapsedTime < 500) {
+  if (!sensorTouches[pin] && prevSensorTouches[pin] && elapsedTime < 500) {
     startVibration(vibrationDuration);
     timeLastTap[pin] = millis();
 
@@ -302,11 +301,9 @@ void startVibration(unsigned long duration) {
   vibrationStartTime = millis();        // Store the current time
   vibrationDuration = duration;         // Set the duration for vibration
   isVibrating = true;                // Set the flag to indicate vibration is on
- 
 }
 
 void updateVibration() {
-  
   // If vibration is active and the duration has passed, stop the motor
   if (isVibrating && (millis() - vibrationStartTime >= vibrationDuration)) {
     digitalWrite(motorPin, LOW);    // Turn off the vibration motor
