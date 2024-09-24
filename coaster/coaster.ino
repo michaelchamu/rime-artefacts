@@ -1,25 +1,19 @@
-/*
-   simple-touch-example
-*/
-
 #include <Wire.h>
 #include <Trill.h>
 #include <WiFi.h>
 #include "secrets.h"
-#include <ArduinoHA.h>
 #include <ArduinoMqttClient.h>
-#include <driver/mcpwm.h>  //vibration library
 
-#define BROKER_ADDR IPAddress(127, 0, 0, 1)
-#define MOTOR_GPIO 3  // Define the GPIO pin connected to the vibromotor
+#define motorPin 3  // Define the GPIO pin connected to the vibromotor
 
-byte mac[] = { 0x00, 0x10, 0xFA, 0x6E, 0x38, 0x4A };
+unsigned long vibrationStartTime = 0;
+unsigned long vibrationDuration = 800; // Vibration duration in milliseconds (1 second)
+bool isVibrating = false;
 
 WiFiClient client;
-//HADevice device(mac, sizeof(mac));
 MqttClient mqttClient(client);
-const char broker[] = "192.168.0.213";
-int port = 1883;
+//const char broker[] =  //"broker.emqx.io";//"192.168.0.213";
+  int port = 1883;
 const char power[] = "power";
 const char color[] = "color";
 
@@ -40,33 +34,69 @@ char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as k
 int status = WL_IDLE_STATUS;  // the WiFi radio's status
 
 void initWiFi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(SECRET_SSID, SECRET_PASS);
-  Serial.print("Connecting to WiFi ..");
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print('.');
-    delay(1000);
+  //scan SSID
+  //if SSID OFFIS is within range, connect to OFFIS network and use OFFIS broker
+  //else use home network and broker
+  int scanned = WiFi.scanNetworks();
+
+  if (scanned == 0)
+    Serial.println("No networks");
+  else {
+    Serial.print(scanned);
+    Serial.println(" networks found");
+    for (int i = 0; i < scanned; ++i) {
+      // Print SSID and RSSI for each network found
+      if (WiFi.SSID(i) == SECRET_SSID) {  //enter the ssid which you want to search
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(SECRET_SSID, SECRET_PASS);
+        Serial.print("Connecting to WiFi ..");
+        while (WiFi.status() != WL_CONNECTED) {
+          Serial.print('.');
+          delay(1000);
+        }
+        Serial.println("You're connected to the network");
+        Serial.println();
+        Serial.println(WiFi.localIP());
+        Serial.print("Attempting to connect to the MQTT broker: ");
+        Serial.println(MQTT_BROKER);
+        mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
+        if (!mqttClient.connect(MQTT_BROKER, port)) {
+          Serial.print("MQTT connection failed! Error code = ");
+          Serial.println(mqttClient);
+
+          while (1)
+            ;
+        }
+
+        Serial.println("You're connected to the MQTT broker!");
+      } else if (WiFi.SSID(i) == OFFIS_SECRET_SSID) {
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(OFFIS_SECRET_SSID, OFFIS_SECRET_PASS);
+        Serial.print("Connecting to WiFi ..");
+        while (WiFi.status() != WL_CONNECTED) {
+          Serial.print('.');
+          delay(1000);
+        }
+        Serial.println("You're connected to the network");
+        Serial.println();
+        Serial.println(WiFi.localIP());
+        Serial.print("Attempting to connect to the MQTT broker: ");
+        Serial.println(OFFIS_MQTT_BROKER);
+        mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
+        if (!mqttClient.connect(OFFIS_MQTT_BROKER, port)) {
+          Serial.print("MQTT connection failed! Error code = ");
+          //Serial.println(mqttClient);
+
+          while (1)
+            ;
+        }
+
+        Serial.println("You're connected to the MQTT broker!");
+      }
+    }
   }
-  Serial.println("You're connected to the network");
-  Serial.println();
-  Serial.println(WiFi.localIP());
 }
 
-// void initVibration(){
-//   // Initialize MCPWM unit
-//   mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, MOTOR_GPIO);
-
-//   // Configure MCPWM settings
-//   mcpwm_config_t pwm_config;
-//   pwm_config.frequency = 1000;    // Frequency in Hz
-//   pwm_config.cmpr_a = 0;          // Duty cycle of PWMxA = 0
-//   pwm_config.cmpr_b = 0;          // Duty cycle of PWMxB = 0
-//   pwm_config.counter_mode = MCPWM_UP_COUNTER; // Up counting mode
-//   pwm_config.duty_mode = MCPWM_DUTY_MODE_0;   // Active HIGH
-
-//   // Initialize MCPWM with the above configuration
-//   mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &pwm_config);
-// }
 
 void setup() {
   // Initialise serial and touch sensor
@@ -75,36 +105,12 @@ void setup() {
   delay(2000);
 
   // connect to wifi
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  delay(100);
+  //WiFi.mode(WIFI_STA);
+  //WiFi.disconnect();
+  //delay(100);
 
   initWiFi();
-  mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, MOTOR_GPIO);
 
-  // Configure MCPWM settings
-  mcpwm_config_t pwm_config;
-  pwm_config.frequency = 1000;                 // Frequency in Hz
-  pwm_config.cmpr_a = 0;                       // Duty cycle of PWMxA = 0
-  pwm_config.cmpr_b = 0;                       // Duty cycle of PWMxB = 0
-  pwm_config.counter_mode = MCPWM_UP_COUNTER;  // Up counting mode
-  pwm_config.duty_mode = MCPWM_DUTY_MODE_0;    // Active HIGH
-
-  // Initialize MCPWM with the above configuration
-  mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &pwm_config);
-
-  Serial.print("Attempting to connect to the MQTT broker: ");
-  Serial.println(broker);
-  mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
-  if (!mqttClient.connect(broker, port)) {
-    Serial.print("MQTT connection failed! Error code = ");
-    Serial.println(mqttClient);
-
-    while (1)
-      ;
-  }
-
-  Serial.println("You're connected to the MQTT broker!");
   Serial.println();
   // Initialse Trill and save returned value
   int ret = trillSensor.setup(Trill::TRILL_CRAFT);
@@ -130,7 +136,7 @@ void setup() {
     heldToTime[i] = false;
     timeLastTap[i] = 0;
   }
-
+pinMode(motorPin, OUTPUT);
   // Initialise the HID keyboard
   // Sends a clean report to the host. This is important on any Arduino type.
 }
@@ -139,10 +145,8 @@ void loop() {
   // call poll() regularly to allow the library to send MQTT keep alive which
   // avoids being disconnected by the broker
   mqttClient.poll();
-
   // Request the latest touch data from Trill
   getSensorData();
-
   //-----------------------------------------------------------------------------
   // vvvvvvv Only change code between here vvvvvvv
   //-----------------------------------------------------------------------------
@@ -150,43 +154,25 @@ void loop() {
   // printSensorData();
 
   // Example of pressing the spacebar when pin 0 is tapped
-  if (isTapped(0)) {
-    // check status of bulb? on/off
-    // if off, set on, if on, set off
-    // transmit signal
-
-    Serial.println("0 was tapped");
-  }
-  if (isTapped(1)) {
-    // check status of bulb? on/off
-    // if off, set on, if on, set off
-    // transmit signal
-    Serial.println("2 was tapped");
-  }
-  if (isTapped(2)) {
-    // check status of bulb? on/off
-    // if off, set on, if on, set off
-    // transmit signal
-    Serial.println("2 was tapped");
-  }
-  if (isTapped(3)) {
-    // check status of bulb? on/off
-    // if off, set on, if on, set off
-    // transmit signal
-    Serial.println("3 was tapped");
-  }
-  if (isTapped(4)) {
-    // check status of bulb? on/off
-    // if off, set on, if on, set off
-    // transmit signal
-    Serial.println("4 was tapped");
-  }
-  if (isTapped(6)) {
-    // check status of bulb? on/off
-    // if off, set on, if on, set off
-    // transmit signal
-    Serial.println("6 was tapped");
-  }
+  if (isTapped(0)) 
+  if (isTapped(1)) 
+  if (isTapped(2))
+  if (isTapped(3)) 
+  if (isTapped(4)) 
+  if (isDoubleTapped(6)) //power
+  if (isTapped(7)) 
+  if (isTapped(9)) 
+  if (isTapped(11)) 
+  if (isTapped(12)) 
+  if (isTapped(14)) 
+  if (isTapped(15)) 
+  if (isTapped(17)) 
+  if (isTapped(18)) 
+  if (isTapped(19)) 
+  if (isTapped(21)) 
+  if (isTapped(22)) 
+  if (isTapped(24)) 
+  if (isTapped(29))
   // Example of tapping pin 26 is tapped while pin 0 is held
   // if (isTapped(26) && isBeingTouched(0)) {
   //   Serial.println("0 is being held and 26 was tapped");
@@ -201,48 +187,15 @@ void loop() {
   // if (isHeldTimer(29, 1500)) {
   //   Serial.println("29 was held to time");
   // }
-  if (isTapped(7)) {
-    Serial.println("7 tapped");
-  }
-  if (isTapped(9)) {
-    Serial.println("9 tapped");
-  }
-  if (isTapped(11)) {
-    Serial.println("11 tapped");
-  }
-  if (isTapped(12)) {
-    Serial.println("12 tapped");
-  }
-  if (isTapped(14)) {
-    Serial.println("14 tapped");
-  }
-  if (isTapped(15)) {
-    Serial.println("15 tapped");
-  }
-  if (isTapped(17)) {
-    Serial.println("17 tapped");
-  }
-  if (isTapped(18)) {
-    Serial.println("18 tapped");
-  }
-  if (isTapped(19)) {
-    Serial.println("19 tapped");
-  }
-  if (isTapped(21)) {
-    Serial.println("21 tapped");
-  }
-  if (isTapped(22)) {
-    Serial.println("22 tapped");
-  }
-  if (isTapped(24)) {
-    Serial.println("24 tapped");
-  }
-  if (isTapped(29)) {
-    Serial.println("28 tapped");
-  }
+  
   //-----------------------------------------------------------------------------
   // ^^^^^^^ Only change code above here ^^^^^^^
   //-----------------------------------------------------------------------------
+    // If vibration is active and the duration has passed, stop the motor
+  if (isVibrating && (millis() - vibrationStartTime >= vibrationDuration)) {
+    digitalWrite(motorPin, LOW);    // Turn off the vibration motor
+    isVibrating = false;                // Reset the flag
+  }
 }
 
 bool isBeingTouched(int pin) {
@@ -250,130 +203,27 @@ bool isBeingTouched(int pin) {
 }
 
 bool isTapped(int pin) {
-  //
-
   // the sensor was touched but has just been released
   // (no longer being touched)
-  // and it was touched for less than a half second (500 ms)
+  // and it was touched for less than a half second (500 ms
+ 
   unsigned long elapsedTime = millis() - touchTimers[pin];
-  if (!sensorTouches[pin] && prevSensorTouches[pin] && elapsedTime < 500) {
+  while (!sensorTouches[pin] && prevSensorTouches[pin] && elapsedTime < 500) {
+   // Serial.println("Tapped inner ");
+    startVibration(vibrationDuration);
     timeLastTap[pin] = millis();
+
+    mqttClient.beginMessage(color);
+    mqttClient.print(pin);
+    mqttClient.endMessage();
+    //Serial.println("Message sent tap, release ");
     //send mqtt request here
     // switch on lights
     //check current status of light from mqtt
-    switch (pin) {
-      case 0:  //pink
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(0);
-        mqttClient.endMessage();
-        break;
-      case 1:  //brown
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(1);
-        mqttClient.endMessage();
-        break;
-      case 2:  //olive green
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(2);
-        mqttClient.endMessage();
-        break;
-      case 3:  // maroon
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(3);
-        mqttClient.endMessage();
-        break;
-      case 4:  //yellow
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(4);
-        mqttClient.endMessage();
-        break;
-      case 6:  //power on/off
-        vibrate(0);
-        mqttClient.beginMessage(power);
-        mqttClient.print(6);
-        mqttClient.endMessage();
-        break;
-      case 7:  //orange
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(7);
-        mqttClient.endMessage();
-        break;
-      case 9:  //red
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(9);
-        mqttClient.endMessage();
-        break;
-      case 11:  //pink
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(0);
-        mqttClient.endMessage();
-        break;
-      case 12:  //nsvy blue
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(12);
-        mqttClient.endMessage();
-        break;
-      case 14:  //sky blue
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(14);
-        mqttClient.endMessage();
-        break;
-      case 15:  //brown
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(1);
-        mqttClient.endMessage();
-        break;
-      case 17:  //white
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(17);
-        mqttClient.endMessage();
-        break;
-      case 18:  //touquous
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(18);
-        mqttClient.endMessage();
-        break;
-      case 19:  //green
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(19);
-        mqttClient.endMessage();
-        break;
-      case 21:  //orange
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(7);
-        mqttClient.endMessage();
-        break;
-      case 22:  //purple
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(22);
-        mqttClient.endMessage();
-        break;
-      case 24:  //orange
-        vibrate(1);
-        mqttClient.beginMessage(color);
-        mqttClient.print(7);
-        mqttClient.endMessage();
-        break;
-    }
-    return true;
+    return true; 
   }
-  // otherwise return false
+  // otherwise return false 
+  
   return false;
 }
 
@@ -381,7 +231,14 @@ bool isDoubleTapped(int pin) {
   // the sensor was tapped twice in quick succession
   // if one tap has happened and less than 50ms has passed since last tap
   unsigned long elapsedTime = millis() - timeLastTap[pin];
+
   if (isTapped(pin) && elapsedTime < 400) {
+    // Serial.println("Double Tapped Inner");
+      startVibration(300);
+      mqttClient.beginMessage(power);
+      mqttClient.print(6);
+      mqttClient.endMessage();
+      
     return true;
   }
   // and a second tap occurs
@@ -449,22 +306,22 @@ void getSensorData() {
   }
 }
 
-void vibrate(int state) {
-  // Set duty cycle for PWM signal
+void startVibration(unsigned long duration) {
+  // Serial.println("Start vibe");
+  digitalWrite(motorPin, HIGH);     // Turn on the vibration motor
+  vibrationStartTime = millis();        // Store the current time
+  vibrationDuration = duration;         // Set the duration for vibration
+  isVibrating = true;                // Set the flag to indicate vibration is on
+ 
+}
 
-  mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 100);
-  // Apply the duty cycle
-  mcpwm_set_duty_type(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, MCPWM_DUTY_MODE_0);
-  if (state == 0)
-    delay(700);  // Wait for 1000ms
-  else
-    delay(200);
-  mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 0);
-  mcpwm_set_duty_type(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, MCPWM_DUTY_MODE_0);
-  if (state == 0)
-    delay(700);  // Wait for 1000ms
-  else
-    delay(200);
+void updateVibration() {
+  
+  // If vibration is active and the duration has passed, stop the motor
+  if (isVibrating && (millis() - vibrationStartTime >= vibrationDuration)) {
+    digitalWrite(motorPin, LOW);    // Turn off the vibration motor
+    isVibrating = false;                // Reset the flag
+  }
 }
 
 void printSensorData() {
