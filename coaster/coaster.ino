@@ -97,7 +97,6 @@ void initWiFi() {
   }
 }
 
-
 void setup() {
   // Initialise serial and touch sensor
   Serial.begin(9600);
@@ -137,8 +136,7 @@ void setup() {
     timeLastTap[i] = 0;
   }
 pinMode(motorPin, OUTPUT);
-  // Initialise the HID keyboard
-  // Sends a clean report to the host. This is important on any Arduino type.
+
 }
 
 void loop() {
@@ -154,25 +152,60 @@ void loop() {
   // printSensorData();
 
   // Example of pressing the spacebar when pin 0 is tapped
-  if (isTapped(0)) 
-  if (isTapped(1)) 
-  if (isTapped(2))
-  if (isTapped(3)) 
-  if (isTapped(4)) 
-  if (isDoubleTapped(6)) //power
-  if (isTapped(7)) 
-  if (isTapped(9)) 
-  if (isTapped(11)) 
-  if (isTapped(12)) 
-  if (isTapped(14)) 
-  if (isTapped(15)) 
-  if (isTapped(17)) 
-  if (isTapped(18)) 
-  if (isTapped(19)) 
-  if (isTapped(21)) 
-  if (isTapped(22)) 
-  if (isTapped(24)) 
-  if (isTapped(29))
+  if (isTapped(0)) {
+    //pink
+  }
+  if (isTapped(1)) {
+    //brown
+  }
+  if (isTapped(2)) {
+//olive green
+  }
+  if (isTapped(3)) {
+// maroon
+  }
+  if (isTapped(4)) {
+//yellow
+  }
+  if (isDoubleTapped(6)) {
+//power
+  }
+  if (isTapped(7)) {
+//orange
+  }
+  if (isTapped(9)) {
+//red
+  }
+  if (isTapped(11)) {
+//pink
+  }
+  if (isTapped(12)) {
+//navu blue
+  }
+  if (isTapped(14)) {
+//sky blue
+  }
+  if (isTapped(15)) {
+//brown
+  }
+  if (isTapped(17)) {
+//white
+  }
+  if (isTapped(18)) {
+//turquouse
+  }
+  if (isTapped(19)) {
+//green
+  }
+  if (isTapped(21)) {
+//orange
+  }
+  if (isTapped(22)) {
+//purple
+  }
+  if (isTapped(24)) {
+//orange
+  }
   //check for and stop vibration
   updateVibration();
   // Example of tapping pin 26 is tapped while pin 0 is held
@@ -204,6 +237,7 @@ bool isTapped(int pin) {
   // and it was touched for less than a half second (500 ms
   unsigned long elapsedTime = millis() - touchTimers[pin];
   if (!sensorTouches[pin] && prevSensorTouches[pin] && elapsedTime < 500) {
+   
     startVibration(vibrationDuration);
     timeLastTap[pin] = millis();
 
@@ -213,7 +247,6 @@ bool isTapped(int pin) {
     return true; 
   }
   // otherwise return false 
-  
   return false;
 }
 
