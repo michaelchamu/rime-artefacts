@@ -178,7 +178,8 @@ void loop() {
 //red
   }
   if (isTapped(11)) {
-//pink
+  //pink
+  Serial.println("11 tapped send value 0");
   }
   if (isTapped(12)) {
 //navu blue
@@ -206,6 +207,10 @@ void loop() {
   }
   if (isTapped(24)) {
 //orange
+  }
+  if (isTapped(29)) {
+  //yellow
+    Serial.println("29 tapped send value 4");
   }
   //check for and stop vibration
   updateVibration();
@@ -238,20 +243,38 @@ bool isTapped(int pin) {
   // and it was touched for less than a half second (500 ms
   unsigned long elapsedTime = millis() - touchTimers[pin];
   if (!sensorTouches[pin] && prevSensorTouches[pin] && elapsedTime < 500) {
+    Serial.println(pin);
     startVibration(vibrationDuration);
    //assign pin 11 to 0, 15 to 1, 21 to 7, 24 to 7
-   
     timeLastTap[pin] = millis();
-    mqttClient.beginMessage(color);
-    if(pin == 11)
-      mqttClient.print(0);
-    if(pin == 15)
-      mqttClient.print(1);
-    if(pin == 21 || pin == 24)
-      mqttClient.print(7);
-    else
-      mqttClient.print(pin);
-    mqttClient.endMessage();
+    switch(pin)
+    {
+      case 11:
+        mqttClient.beginMessage(color);
+        mqttClient.print(0);
+        mqttClient.endMessage();
+        break;
+      case 15:
+        mqttClient.beginMessage(color);
+        mqttClient.print(1);
+        mqttClient.endMessage();
+        break;
+      case 21: case 24:
+        mqttClient.beginMessage(color);
+        mqttClient.print(7);
+        mqttClient.endMessage();
+        break;
+      case 29:
+        mqttClient.beginMessage(color);
+        mqttClient.print(4);
+        mqttClient.endMessage();
+        break;
+      default:
+        mqttClient.beginMessage(color);
+        mqttClient.print(pin);
+        mqttClient.endMessage();
+        break;
+      }
     return true; 
   }
   // otherwise return false 
