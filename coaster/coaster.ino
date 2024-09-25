@@ -7,13 +7,13 @@
 #define motorPin 3  // Define the GPIO pin connected to the vibromotor
 
 unsigned long vibrationStartTime = 0;
-unsigned long vibrationDuration = 800; // Vibration duration in milliseconds (1 second)
+unsigned long vibrationDuration = 800;  // Vibration duration in milliseconds (1 second)
 bool isVibrating = false;
 
 WiFiClient client;
 MqttClient mqttClient(client);
 //const char broker[] =  //"broker.emqx.io";//"192.168.0.213";
-  int port = 1883;
+int port = 1883;
 const char power[] = "power";
 const char color[] = "color";
 
@@ -135,11 +135,11 @@ void setup() {
     heldToTime[i] = false;
     timeLastTap[i] = 0;
   }
-pinMode(motorPin, OUTPUT);
-
+  pinMode(motorPin, OUTPUT);
 }
 
 void loop() {
+  delay(50);
   // call poll() regularly to allow the library to send MQTT keep alive which
   // avoids being disconnected by the broker
   mqttClient.poll();
@@ -152,66 +152,63 @@ void loop() {
   // printSensorData();
 
   // Example of pressing the spacebar when pin 0 is tapped
-  if (isTapped(0)) {
-    //pink
-  }
-  if (isTapped(1)) {
-    //brown
-  }
-  if (isTapped(2)) {
-//olive green
-  }
-  if (isTapped(3)) {
-// maroon
-  }
-  if (isTapped(4)) {
-//yellow
+  /*
+| Color        | Number |
+|--------------|--------|
+| pink         | 0,11   |
+| brown        | 1,15   |
+| olive green  | 2      |
+| maroon       | 3      |
+| yellow       | 4,29   |
+| orange       | 7,21,24|
+| red          | 9      |
+| navy blue    | 12     |
+| sky blue     | 14     |
+| white        | 17     |
+| turquouse    | 18     |
+| green        | 19     |
+| purple       | 22     |
+*/
+
+  for (int pin = 0; pin < 30; pin++) { 
+    if (isHeldTimer(pin, 10)) {
+      switch (pin) {
+        case 11:
+          mqttClient.beginMessage(color);
+          mqttClient.print(0);
+          mqttClient.endMessage();
+          break;
+        case 15:
+          mqttClient.beginMessage(color);
+          mqttClient.print(1);
+          mqttClient.endMessage();
+          break;
+        case 21:
+        case 24:
+          mqttClient.beginMessage(color);
+          mqttClient.print(7);
+          mqttClient.endMessage();
+          break;
+        case 29:
+          mqttClient.beginMessage(color);
+          mqttClient.print(4);
+          mqttClient.endMessage();
+          break;
+        default:
+          mqttClient.beginMessage(color);
+          mqttClient.print(pin);
+          mqttClient.endMessage();
+          break;
+      }
+    }
   }
   if (isDoubleTapped(6)) {
-//power
+    //power
+    mqttClient.beginMessage(power);
+    mqttClient.print(6);
+    mqttClient.endMessage();
   }
-  if (isTapped(7)) {
-  //orange
 
-  }
-  if (isTapped(9)) {
-//red
-  }
-  if (isTapped(11)) {
-  //pink
-  Serial.println("11 tapped send value 0");
-  }
-  if (isTapped(12)) {
-//navu blue
-  }
-  if (isTapped(14)) {
-//sky blue
-  }
-  if (isTapped(15)) {
-//brown
-  }
-  if (isTapped(17)) {
-//white
-  }
-  if (isTapped(18)) {
-//turquouse
-  }
-  if (isTapped(19)) {
-//green
-  }
-  if (isTapped(21)) {
-//orange
-  }
-  if (isTapped(22)) {
-//purple
-  }
-  if (isTapped(24)) {
-//orange
-  }
-  if (isTapped(29)) {
-  //yellow
-    Serial.println("29 tapped send value 4");
-  }
   //check for and stop vibration
   updateVibration();
   // Example of tapping pin 26 is tapped while pin 0 is held
@@ -228,14 +225,14 @@ void loop() {
   // if (isHeldTimer(29, 1500)) {
   //   Serial.println("29 was held to time");
   // }
-  
+
   //-----------------------------------------------------------------------------
   // ^^^^^^^ Only change code above here ^^^^^^^
   //-----------------------------------------------------------------------------
 }
 
 bool isBeingTouched(int pin) {
-    return sensorTouches[pin];
+  return sensorTouches[pin];
 }
 
 bool isTapped(int pin) {
@@ -243,41 +240,11 @@ bool isTapped(int pin) {
   // and it was touched for less than a half second (500 ms
   unsigned long elapsedTime = millis() - touchTimers[pin];
   if (!sensorTouches[pin] && prevSensorTouches[pin] && elapsedTime < 500) {
-    Serial.println(pin);
-    startVibration(vibrationDuration);
-   //assign pin 11 to 0, 15 to 1, 21 to 7, 24 to 7
+    digitalWrite(motorPin, HIGH); 
     timeLastTap[pin] = millis();
-    switch(pin)
-    {
-      case 11:
-        mqttClient.beginMessage(color);
-        mqttClient.print(0);
-        mqttClient.endMessage();
-        break;
-      case 15:
-        mqttClient.beginMessage(color);
-        mqttClient.print(1);
-        mqttClient.endMessage();
-        break;
-      case 21: case 24:
-        mqttClient.beginMessage(color);
-        mqttClient.print(7);
-        mqttClient.endMessage();
-        break;
-      case 29:
-        mqttClient.beginMessage(color);
-        mqttClient.print(4);
-        mqttClient.endMessage();
-        break;
-      default:
-        mqttClient.beginMessage(color);
-        mqttClient.print(pin);
-        mqttClient.endMessage();
-        break;
-      }
-    return true; 
+    return true;
   }
-  // otherwise return false 
+  // otherwise return false
   return false;
 }
 
@@ -287,11 +254,7 @@ bool isDoubleTapped(int pin) {
   unsigned long elapsedTime = millis() - timeLastTap[pin];
 
   if (isTapped(pin) && elapsedTime < 400) {
-      startVibration(300);
-      mqttClient.beginMessage(power);
-      mqttClient.print(6);
-      mqttClient.endMessage();
-      
+    startVibration(300);
     return true;
   }
   // and a second tap occurs
@@ -307,6 +270,7 @@ bool isHeldTimer(int pin, int minTime) {
   // check if the pin has been actively touched for at least the minimum time in ms
   unsigned long elapsedTime = millis() - touchTimers[pin];
   if (sensorTouches[pin] && elapsedTime > minTime) {
+    startVibration(500);
     heldToTime[pin] = true;
     return true;
   }
@@ -361,17 +325,17 @@ void getSensorData() {
 
 void startVibration(unsigned long duration) {
   // Serial.println("Start vibe");
-  digitalWrite(motorPin, HIGH);     // Turn on the vibration motor
-  vibrationStartTime = millis();        // Store the current time
-  vibrationDuration = duration;         // Set the duration for vibration
-  isVibrating = true;                // Set the flag to indicate vibration is on
+  digitalWrite(motorPin, HIGH);   // Turn on the vibration motor
+  vibrationStartTime = millis();  // Store the current time
+  vibrationDuration = duration;   // Set the duration for vibration
+  isVibrating = true;             // Set the flag to indicate vibration is on
 }
 
 void updateVibration() {
   // If vibration is active and the duration has passed, stop the motor
   if (isVibrating && (millis() - vibrationStartTime >= vibrationDuration)) {
-    digitalWrite(motorPin, LOW);    // Turn off the vibration motor
-    isVibrating = false;                // Reset the flag
+    digitalWrite(motorPin, LOW);  // Turn off the vibration motor
+    isVibrating = false;          // Reset the flag
   }
 }
 
