@@ -171,7 +171,8 @@ void loop() {
 //power
   }
   if (isTapped(7)) {
-//orange
+  //orange
+
   }
   if (isTapped(9)) {
 //red
@@ -229,7 +230,7 @@ void loop() {
 }
 
 bool isBeingTouched(int pin) {
-  return sensorTouches[pin];
+    return sensorTouches[pin];
 }
 
 bool isTapped(int pin) {
@@ -237,12 +238,19 @@ bool isTapped(int pin) {
   // and it was touched for less than a half second (500 ms
   unsigned long elapsedTime = millis() - touchTimers[pin];
   if (!sensorTouches[pin] && prevSensorTouches[pin] && elapsedTime < 500) {
-   
     startVibration(vibrationDuration);
+   //assign pin 11 to 0, 15 to 1, 21 to 7, 24 to 7
+   
     timeLastTap[pin] = millis();
-
     mqttClient.beginMessage(color);
-    mqttClient.print(pin);
+    if(pin == 11)
+      mqttClient.print(0);
+    if(pin == 15)
+      mqttClient.print(1);
+    if(pin == 21 || pin == 24)
+      mqttClient.print(7);
+    else
+      mqttClient.print(pin);
     mqttClient.endMessage();
     return true; 
   }
