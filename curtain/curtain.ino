@@ -1,105 +1,52 @@
-
 #include <ArduinoMqttClient.h>
 #include <WiFiNINA.h>
-#include <Arduino_MultiWiFi.h>
 #include "secrets.h"
-#include "Adafruit_DRV2605.h"
 
-Adafruit_DRV2605 drv;
+#define motorPin A5
 
-int sensorPin = A0;                        // select the input pin for the potentiometer
-int sensorValue = 0, pastSensorValue = 0;  // variable to store the value coming from the sensor
-int previousValue = 0;
+int sensorPin = A0;  // Potentiometer input pin
+int sensorValue = 0, pastSensorValue = 0;
 int currVal = 0, pastVal = 0;
-unsigned long currentTime = millis();
-long previousMillis = 0;
-long interval = 1000;
+unsigned long previousMillis = 0;
+unsigned long motorStartTime = 0;
+const unsigned long motorDuration = 1000;  // Duration for which the motor will run (in milliseconds)
+bool motorRunning = false;
+// Variables to track stabilization
+unsigned long lastStableTime = 0;
+unsigned long stableThreshold = 500;  // Time (ms) for the value to be stable
+int stableVal = -1;                   // Store the final stable value
 
-WiFiClient wifiClient;
-MultiWiFi multi;
+WiFiClient client;
+MqttClient mqttClient(client);
 
-// mqtt config and connection credentials
-const char broker[] = BROKER;
-int port = PORT;
+// MQTT config and connection credentials
+//const char broker[] = BROKER;
+int port = 1883;
 const char topic[] = "blinds";
 
-MqttClient mqttClient(wifiClient);
 
 void setup() {
-  multi.add(SECRET_SSID, SECRET_PASS);
-  multi.add(OFFIS_SECRET_SSID, OFFIS_SECRET_PASS);
-  if (multi.run() == WL_CONNECTED) {
-    Serial.print("Successfully connected to network: ");
-    Serial.println(WiFi.SSID());
-  } else {
-    Serial.println("Failed to connect to a WiFi network");
-  }
-  // initialize serial communications
+  // Initialize serial communication
   Serial.begin(9600);
-
-  if (WiFi.status() == WL_NO_MODULE) {
-    Serial.println("Communication with WiFi module failed!");
-    // don't continue
-    while (true)
-      ;
-  }
-
-  String fv = WiFi.firmwareVersion();
-  if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
-    Serial.println("Please upgrade the firmware");
-  }
-  // you're connected now, so print out the data:
-  Serial.print("You're connected to the network");
-  if (WiFi.SSID() == SECRET_SSID) {
-    Serial.print("Attempting to connect to the MQTT broker: ");
-    Serial.println(BROKER);
-    mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
-    if (!mqttClient.connect(BROKER, port)) {
-      Serial.print("MQTT connection failed! Error code = ");
-      Serial.println(mqttClient);
-
-      while (1)
-        ;
-    }
-
-    Serial.println("You're connected to the MQTT broker!");
-    Serial.println();
-  } else {
-    Serial.print("Attempting to connect to the MQTT broker: ");
-    Serial.println(OFFIS_BROKER);
-    mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
-    if (!mqttClient.connect(OFFIS_BROKER, port)) {
-      Serial.print("MQTT connection failed! Error code = ");
-      Serial.println(mqttClient);
-
-      while (1)
-        ;
-    }
-
-    Serial.println("You're connected to the MQTT broker!");
-    Serial.println();
-  }
-
-  if (!drv.begin()) {
-    Serial.println("Could not find DRV2605");
-    while (1) delay(10);
-  }
-
-  drv.selectLibrary(6);
-
-  // I2C trigger by sending 'go' command
-  // default, internal trigger when sending GO command
-  drv.setMode(DRV2605_MODE_INTTRIG);
+  delay(2000);
+  initWiFi();
+  pinMode(motorPin, OUTPUT);
 }
 
 void loop() {
   unsigned long currentMillis = millis();
   mqttClient.poll();
+
+  // Read sensor value
   pastSensorValue = sensorValue;
   sensorValue = map(analogRead(sensorPin), 0, 1023, 0, 255);
-  if (abs(sensorValue - pastSensorValue) < 6) sensorValue = pastSensorValue;
-  // Serial.println(sensorValue);
 
+  // Ignore small fluctuations in sensor values
+  if (abs(sensorValue - pastSensorValue) < 6) {
+    sensorValue = pastSensorValue;
+  }
+
+  // Map sensor value to currVal based on defined ranges
   if (sensorValue > 0 && sensorValue <= 134)
     currVal = 1;
   else if (sensorValue >= 135 && sensorValue <= 165)
@@ -111,26 +58,102 @@ void loop() {
   else
     currVal = pastVal;
 
-
+  // Check if the current value has changed and has been stable for a certain duration
   if (currVal != pastVal) {
-
-    // update the previous value
     pastVal = currVal;
-    // set the effect to play
-    if (currentMillis - previousMillis > interval) {
-      // save the last time you blinked the LED
-      previousMillis = currentMillis;
+    lastStableTime = currentMillis;  // Reset the stability timer
+  } else if (currentMillis - lastStableTime >= stableThreshold && stableVal != currVal) {
+    // Value has been stable for more than stableThreshold time
+    stableVal = currVal;
 
-      drv.setWaveform(0, 14);  // play effect
-      drv.setWaveform(1, 0);   // end waveform
-      // play the effect!
-      drv.go();
+    // Trigger the motor and start the timer
+    motorRunning = true;
+    motorStartTime = currentMillis;
+    digitalWrite(motorPin, HIGH);
+
+    // Send the final stable value via MQTT
+    sendMqttRequest(stableVal);
+    Serial.print("MQTT Stable value: ");
+    Serial.println(stableVal);
+  }
+
+  // Handle non-blocking motor control
+  if (motorRunning && currentMillis - motorStartTime >= motorDuration) {
+    digitalWrite(motorPin, LOW);  // Turn off the motor
+    motorRunning = false;         // Reset the motor running flag
+  }
+
+  // Additional non-blocking tasks can be added here
+}
+
+
+void sendMqttRequest(int value) {
+  mqttClient.beginMessage("blinds");
+  mqttClient.print(value);
+  mqttClient.endMessage();
+  Serial.println("method called: " + mqttClient.getWriteError());
+  // Print the current value to Serial for debugging
+  Serial.println(value);
+}
+
+void initWiFi() {
+  // Scan for available networks
+  int numNetworks = WiFi.scanNetworks();
+  if (numNetworks == 0) {
+    Serial.println("No Wi-Fi networks found");
+  } else {
+    Serial.println("Available Wi-Fi networks:");
+    // Print all found SSIDs
+    for (int i = 0; i < numNetworks; i++) {
+      Serial.print(i + 1);
+      Serial.print(": ");
+      Serial.println(WiFi.SSID(i));
     }
-    Serial.println(currVal);
-    // display the current valu
-    //vibrate currVal times
-    mqttClient.beginMessage(topic);
-    mqttClient.print(pastVal);
-    mqttClient.endMessage();
+
+    // Look for the desired SSID (from secrets.h)
+    bool ssidFound = false;
+    for (int i = 0; i < numNetworks; i++) {
+      if (strcmp(SECRET_SSID, WiFi.SSID(i)) == 0) {
+        ssidFound = true;
+        Serial.print("Matching SSID found: ");
+        Serial.println(SECRET_SSID);
+
+        // Attempt to connect to the network
+        WiFi.begin(SECRET_SSID, SECRET_PASS);
+        Serial.print("Connecting to ");
+        Serial.println(SECRET_SSID);
+
+        // Wait for connection to be established
+        int attemptCount = 0;
+        while (WiFi.status() != WL_CONNECTED && attemptCount < 20) {
+          Serial.print('.');
+          delay(500);
+          attemptCount++;
+        }
+        // Check if connected
+        if (WiFi.status() == WL_CONNECTED) {
+          Serial.println("Connected to Wi-Fi");
+          Serial.print("Attempting to connect to the MQTT broker: ");
+          Serial.println(MQTT_BROKER);
+          mqttClient.setUsernamePassword(MQTT_UNAME, MQTT_PWORD);
+          if (!mqttClient.connect(MQTT_BROKER, port)) {
+            Serial.print("MQTT connection failed! Error code = ");
+            Serial.println(mqttClient);
+
+            while (1)
+              ;
+          }
+
+          Serial.println("You're connected to the MQTT broker!");
+        } else {
+          Serial.println();
+          Serial.println("Failed to connect to Wi-Fi");
+        }
+        break;
+      }
+    }
+    if (!ssidFound) {
+      Serial.println("Desired SSID not found in scan results");
+    }
   }
 }
