@@ -150,6 +150,43 @@ void initWiFi() {
           Serial.println("Failed to connect to Wi-Fi");
         }
         break;
+      } else if (strcmp(OFFIS_SECRET_SSID, WiFi.SSID(i)) == 0)  {
+        ssidFound = true;
+        Serial.print("Matching SSID found: ");
+        Serial.println(OFFIS_SECRET_SSID);
+
+        // Attempt to connect to the network
+        WiFi.begin(OFFIS_SECRET_SSID, OFFIS_SECRET_PASS);
+        Serial.print("Connecting to ");
+        Serial.println(OFFIS_SECRET_SSID);
+
+        // Wait for connection to be established
+        int attemptCount = 0;
+        while (WiFi.status() != WL_CONNECTED && attemptCount < 20) {
+          Serial.print('.');
+          delay(500);
+          attemptCount++;
+        }
+        // Check if connected
+        if (WiFi.status() == WL_CONNECTED) {
+          Serial.println("Connected to Wi-Fi");
+          Serial.print("Attempting to connect to the MQTT broker: ");
+          Serial.println(OFFIS_MQTT_BROKER);
+          mqttClient.setUsernamePassword(MQTT_UNAME_OFFIS, MQTT_PW_OFFIS);
+          if (!mqttClient.connect(OFFIS_MQTT_BROKER, port)) {
+            Serial.print("MQTT connection failed! Error code = ");
+            Serial.println(mqttClient);
+
+            while (1)
+              ;
+          }
+
+          Serial.println("You're connected to the MQTT broker!");
+        } else {
+          Serial.println();
+          Serial.println("Failed to connect to Wi-Fi");
+        }
+        break;
       }
     }
     if (!ssidFound) {
