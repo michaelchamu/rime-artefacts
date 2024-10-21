@@ -59,7 +59,7 @@ void initWiFi() {
         Serial.println(WiFi.localIP());
         Serial.print("Attempting to connect to the MQTT broker: ");
         Serial.println(MQTT_BROKER);
-        mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
+        mqttClient.setUsernamePassword(MQTT_UNAME, MQTT_PWORD);
         if (!mqttClient.connect(MQTT_BROKER, port)) {
           Serial.print("MQTT connection failed! Error code = ");
           Serial.println(mqttClient);
@@ -82,7 +82,7 @@ void initWiFi() {
         Serial.println(WiFi.localIP());
         Serial.print("Attempting to connect to the MQTT broker: ");
         Serial.println(OFFIS_MQTT_BROKER);
-        mqttClient.setUsernamePassword("***REMOVED***", "***REMOVED***");
+        mqttClient.setUsernamePassword(MQTT_UNAME_OFFIS, MQTT_PW_OFFIS);
         if (!mqttClient.connect(OFFIS_MQTT_BROKER, port)) {
           Serial.print("MQTT connection failed! Error code = ");
           //Serial.println(mqttClient);
@@ -252,7 +252,6 @@ bool isDoubleTapped(int pin) {
   // the sensor was tapped twice in quick succession
   // if one tap has happened and less than 50ms has passed since last tap
   unsigned long elapsedTime = millis() - timeLastTap[pin];
-
   if (isTapped(pin) && elapsedTime < 400) {
     startVibration(300);
     return true;
