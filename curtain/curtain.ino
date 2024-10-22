@@ -7,7 +7,6 @@
 int sensorPin = A0;  // Potentiometer input pin
 int sensorValue = 0, pastSensorValue = 0;
 int currVal = 0, pastVal = 0;
-unsigned long previousMillis = 0;
 unsigned long motorStartTime = 0;
 const unsigned long motorDuration = 1000;  // Duration for which the motor will run (in milliseconds)
 bool motorRunning = false;
@@ -20,7 +19,6 @@ WiFiClient client;
 MqttClient mqttClient(client);
 
 // MQTT config and connection credentials
-//const char broker[] = BROKER;
 int port = 1883;
 const char topic[] = "blinds";
 
@@ -45,16 +43,20 @@ void loop() {
   if (abs(sensorValue - pastSensorValue) < 6) {
     sensorValue = pastSensorValue;
   }
+  Serial.println(sensorValue);
+  // Map sensor value to currVal based on defined ranges - play around with the ranges to get desired effect
+  //2-32, 33-64, 65-95, 96-126, 127-159
 
-  // Map sensor value to currVal based on defined ranges
-  if (sensorValue > 0 && sensorValue <= 134)
-    currVal = 1;
-  else if (sensorValue >= 135 && sensorValue <= 165)
-    currVal = 2;
-  else if (sensorValue >= 166 && sensorValue <= 225)
-    currVal = 3;
-  else if (sensorValue >= 226 && sensorValue <= 255)
-    currVal = 4;
+  if (sensorValue > 0 && sensorValue <= 32)
+    currVal = 1; //fully close 100%
+  else if (sensorValue >= 33 && sensorValue <= 64)
+    currVal = 2; //2/5th open 60% close (100-40)
+  else if (sensorValue >= 65 && sensorValue <= 95)
+    currVal = 3;// 3/5th open 40% close (100-60)
+  else if (sensorValue >= 96 && sensorValue <= 126)
+    currVal = 4;// 4/5 open 20% close (100-80)
+  else if (sensorValue >= 127 && sensorValue <= 159)
+    currVal = 5; //5/5 open 0% close/fully open 
   else
     currVal = pastVal;
 
@@ -82,16 +84,13 @@ void loop() {
     digitalWrite(motorPin, LOW);  // Turn off the motor
     motorRunning = false;         // Reset the motor running flag
   }
-
   // Additional non-blocking tasks can be added here
 }
 
-
 void sendMqttRequest(int value) {
-  mqttClient.beginMessage("blinds");
+  mqttClient.beginMessage(topic);
   mqttClient.print(value);
   mqttClient.endMessage();
-  Serial.println("method called: " + mqttClient.getWriteError());
   // Print the current value to Serial for debugging
   Serial.println(value);
 }
