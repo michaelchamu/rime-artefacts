@@ -24,7 +24,9 @@ This repository contains firmware for four innovative smart home control devices
 ### 4. **Volume Control Vase**  
    - **Microcontroller:** Xiao ESP32S3  
    - **Functionality:** Volume control via a Bluetooth HMI.  
-   - **Note:** Tested on Android devices. Compatibility with Apple devices is not guaranteed.  
+   - **Note:** Tested on Android devices. Compatibility with Apple devices is not guaranteed. 
+   A total of 16 channels (8 on each side) are used to make either face of the vase interactive.
+   It is important to use consecutive channels when adapting the code.
 
 ---
 
