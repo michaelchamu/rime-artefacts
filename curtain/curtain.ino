@@ -43,23 +43,21 @@ void loop() {
   if (abs(sensorValue - pastSensorValue) < 6) {
     sensorValue = pastSensorValue;
   }
-  Serial.println(sensorValue);
   // Map sensor value to currVal based on defined ranges - play around with the ranges to get desired effect
   //2-32, 33-64, 65-95, 96-126, 127-159
 
   if (sensorValue > 0 && sensorValue <= 32)
-    currVal = 1; //fully close 100%
+    currVal = 1;  //fully close 100%
   else if (sensorValue >= 33 && sensorValue <= 64)
-    currVal = 2; //2/5th open 60% close (100-40)
+    currVal = 2;  //2/5th open 60% close (100-40)
   else if (sensorValue >= 65 && sensorValue <= 95)
-    currVal = 3;// 3/5th open 40% close (100-60)
+    currVal = 3;  // 3/5th open 40% close (100-60)
   else if (sensorValue >= 96 && sensorValue <= 126)
-    currVal = 4;// 4/5 open 20% close (100-80)
+    currVal = 4;  // 4/5 open 20% close (100-80)
   else if (sensorValue >= 127 && sensorValue <= 159)
-    currVal = 5; //5/5 open 0% close/fully open 
+    currVal = 5;  //5/5 open 0% close/fully open
   else
     currVal = pastVal;
-
   // Check if the current value has changed and has been stable for a certain duration
   if (currVal != pastVal) {
     pastVal = currVal;
@@ -67,14 +65,10 @@ void loop() {
   } else if (currentMillis - lastStableTime >= stableThreshold && stableVal != currVal) {
     // Value has been stable for more than stableThreshold time
     stableVal = currVal;
-
-    // Trigger the motor and start the timer
-    motorRunning = true;
-    motorStartTime = currentMillis;
-    digitalWrite(motorPin, HIGH);
-
     // Send the final stable value via MQTT
-    sendMqttRequest(stableVal);
+    sendMqttRequest(stableVal, currentMillis);
+    Serial.print("Signal value: ");
+    Serial.println(sensorValue);
     Serial.print("MQTT Stable value: ");
     Serial.println(stableVal);
   }
@@ -87,7 +81,11 @@ void loop() {
   // Additional non-blocking tasks can be added here
 }
 
-void sendMqttRequest(int value) {
+void sendMqttRequest(int value, unsigned long currentMillis) {
+  // Trigger the motor and start the timer
+  motorRunning = true;
+  motorStartTime = currentMillis;
+  digitalWrite(motorPin, HIGH);
   mqttClient.beginMessage(topic);
   mqttClient.print(value);
   mqttClient.endMessage();
@@ -96,100 +94,35 @@ void sendMqttRequest(int value) {
 }
 
 void initWiFi() {
-  // Scan for available networks
-  int numNetworks = WiFi.scanNetworks();
-  if (numNetworks == 0) {
-    Serial.println("No Wi-Fi networks found");
+  // Attempt to connect to the network
+  WiFi.begin(SECRET_SSID, SECRET_PASS);
+  Serial.print("Connecting to ");
+  Serial.println(SECRET_SSID);
+
+  // Wait for connection to be established
+  int attemptCount = 0;
+  while (WiFi.status() != WL_CONNECTED && attemptCount < 20) {
+    Serial.print('.');
+    delay(500);
+    attemptCount++;
+  }
+  // Check if connected
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("Connected to Wi-Fi");
+    Serial.print("Attempting to connect to the MQTT broker: ");
+    Serial.println(MQTT_BROKER);
+    mqttClient.setUsernamePassword(MQTT_UNAME, MQTT_PWORD);
+    if (!mqttClient.connect(MQTT_BROKER, port)) {
+      Serial.print("MQTT connection failed! Error code = ");
+      Serial.println(mqttClient);
+
+      while (1)
+        ;
+    }
+
+    Serial.println("You're connected to the MQTT broker!");
   } else {
-    Serial.println("Available Wi-Fi networks:");
-    // Print all found SSIDs
-    for (int i = 0; i < numNetworks; i++) {
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.println(WiFi.SSID(i));
-    }
-
-    // Look for the desired SSID (from secrets.h)
-    bool ssidFound = false;
-    for (int i = 0; i < numNetworks; i++) {
-      if (strcmp(SECRET_SSID, WiFi.SSID(i)) == 0) {
-        ssidFound = true;
-        Serial.print("Matching SSID found: ");
-        Serial.println(SECRET_SSID);
-
-        // Attempt to connect to the network
-        WiFi.begin(SECRET_SSID, SECRET_PASS);
-        Serial.print("Connecting to ");
-        Serial.println(SECRET_SSID);
-
-        // Wait for connection to be established
-        int attemptCount = 0;
-        while (WiFi.status() != WL_CONNECTED && attemptCount < 20) {
-          Serial.print('.');
-          delay(500);
-          attemptCount++;
-        }
-        // Check if connected
-        if (WiFi.status() == WL_CONNECTED) {
-          Serial.println("Connected to Wi-Fi");
-          Serial.print("Attempting to connect to the MQTT broker: ");
-          Serial.println(MQTT_BROKER);
-          mqttClient.setUsernamePassword(MQTT_UNAME, MQTT_PWORD);
-          if (!mqttClient.connect(MQTT_BROKER, port)) {
-            Serial.print("MQTT connection failed! Error code = ");
-            Serial.println(mqttClient);
-
-            while (1)
-              ;
-          }
-
-          Serial.println("You're connected to the MQTT broker!");
-        } else {
-          Serial.println();
-          Serial.println("Failed to connect to Wi-Fi");
-        }
-        break;
-      } else if (strcmp(OFFIS_SECRET_SSID, WiFi.SSID(i)) == 0)  {
-        ssidFound = true;
-        Serial.print("Matching SSID found: ");
-        Serial.println(OFFIS_SECRET_SSID);
-
-        // Attempt to connect to the network
-        WiFi.begin(OFFIS_SECRET_SSID, OFFIS_SECRET_PASS);
-        Serial.print("Connecting to ");
-        Serial.println(OFFIS_SECRET_SSID);
-
-        // Wait for connection to be established
-        int attemptCount = 0;
-        while (WiFi.status() != WL_CONNECTED && attemptCount < 20) {
-          Serial.print('.');
-          delay(500);
-          attemptCount++;
-        }
-        // Check if connected
-        if (WiFi.status() == WL_CONNECTED) {
-          Serial.println("Connected to Wi-Fi");
-          Serial.print("Attempting to connect to the MQTT broker: ");
-          Serial.println(OFFIS_MQTT_BROKER);
-          mqttClient.setUsernamePassword(MQTT_UNAME_OFFIS, MQTT_PW_OFFIS);
-          if (!mqttClient.connect(OFFIS_MQTT_BROKER, port)) {
-            Serial.print("MQTT connection failed! Error code = ");
-            Serial.println(mqttClient);
-
-            while (1)
-              ;
-          }
-
-          Serial.println("You're connected to the MQTT broker!");
-        } else {
-          Serial.println();
-          Serial.println("Failed to connect to Wi-Fi");
-        }
-        break;
-      }
-    }
-    if (!ssidFound) {
-      Serial.println("Desired SSID not found in scan results");
-    }
+    Serial.println();
+    Serial.println("Failed to connect to Wi-Fi");
   }
 }
