@@ -12,6 +12,7 @@ bool isVibrating = false;
 
 WiFiClient client;
 MqttClient mqttClient(client);
+
 //const char broker[] =  //"broker.emqx.io";//"192.168.0.213";
 int port = 1883;
 const char power[] = "power";
@@ -37,16 +38,7 @@ void initWiFi() {
   //scan SSID
   //if SSID OFFIS is within range, connect to OFFIS network and use OFFIS broker
   //else use home network and broker
-  int scanned = WiFi.scanNetworks();
-
-  if (scanned == 0)
-    Serial.println("No networks");
-  else {
-    Serial.print(scanned);
-    Serial.println(" networks found");
-    for (int i = 0; i < scanned; ++i) {
       // Print SSID and RSSI for each network found
-      if (WiFi.SSID(i) == SECRET_SSID) {  //enter the ssid which you want to search
         WiFi.mode(WIFI_STA);
         WiFi.begin(SECRET_SSID, SECRET_PASS);
         Serial.print("Connecting to WiFi ..");
@@ -57,44 +49,20 @@ void initWiFi() {
         Serial.println("You're connected to the network");
         Serial.println();
         Serial.println(WiFi.localIP());
-        Serial.print("Attempting to connect to the MQTT broker: ");
-        Serial.println(MQTT_BROKER);
+        Serial.print("Connecting to broker ");
+        Serial.print(MQTT_BROKER);
         mqttClient.setUsernamePassword(MQTT_UNAME, MQTT_PWORD);
         if (!mqttClient.connect(MQTT_BROKER, port)) {
           Serial.print("MQTT connection failed! Error code = ");
-          Serial.println(mqttClient);
+          Serial.print("MQTT error: ");
+          Serial.println(mqttClient.connectError());
 
           while (1)
             ;
         }
 
         Serial.println("You're connected to the MQTT broker!");
-      } else if (WiFi.SSID(i) == OFFIS_SECRET_SSID) {
-        WiFi.mode(WIFI_STA);
-        WiFi.begin(OFFIS_SECRET_SSID, OFFIS_SECRET_PASS);
-        Serial.print("Connecting to WiFi ..");
-        while (WiFi.status() != WL_CONNECTED) {
-          Serial.print('.');
-          delay(1000);
-        }
-        Serial.println("You're connected to the network");
-        Serial.println();
-        Serial.println(WiFi.localIP());
-        Serial.print("Attempting to connect to the MQTT broker: ");
-        Serial.println(OFFIS_MQTT_BROKER);
-        mqttClient.setUsernamePassword(MQTT_UNAME_OFFIS, MQTT_PW_OFFIS);
-        if (!mqttClient.connect(OFFIS_MQTT_BROKER, port)) {
-          Serial.print("MQTT connection failed! Error code = ");
-          //Serial.println(mqttClient);
-
-          while (1)
-            ;
-        }
-
-        Serial.println("You're connected to the MQTT broker!");
-      }
-    }
-  }
+      
 }
 
 void setup() {
