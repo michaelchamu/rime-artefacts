@@ -1,4 +1,3 @@
-```markdown
 # Smart Home Control Devices Firmware
 
 This repository contains firmware for four innovative smart home control devices. Each device connects to specific smart home gadgets and allows you to interact with them using creative tangible interfaces. Below, you'll find detailed instructions for setting up each device.
@@ -124,4 +123,3 @@ This project is licensed under the [MIT License](LICENSE).
 ---
 
 Enjoy exploring and customizing your smart home with these creative control devices! 🌟
-```
