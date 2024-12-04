@@ -10,12 +10,13 @@ bool isVibrating = false;
 BleKeyboard bleKeyboard("ESP32 Volume", "ESP32 Manufacturer", 100);  // Initialize BLE keyboard with device name and other parameters
 Trill trillSensor;
 
-const unsigned int NUM_TOTAL_PADS = 30;
+const unsigned int NUM_TOTAL_PADS = 16;
 CustomSlider::WORD rawData[NUM_TOTAL_PADS];
 
-const uint8_t sliderNumPads = 30;
+const uint8_t sliderNumPads = 16;
 
-uint8_t sliderPads[sliderNumPads] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 };
+uint8_t sliderPads[sliderNumPads] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+//uint8_t sliderPads[sliderNumPads] = {  20, 21, 22, 23, 24, 25, 26, 27, 28, 29 };
 const unsigned int numSliders = 1;
 CustomSlider slider;
 int lastTouched = 0;
@@ -25,7 +26,7 @@ void setup() {
   Serial.begin(115200);
 
   int ret;
-  while (trillSensor.setup(Trill::TRILL_FLEX)) {
+  while (trillSensor.setup(Trill::TRILL_CRAFT)) {
     Serial.println("failed to initialise trillSensor");
     Serial.println("Retrying...");
     delay(100);
@@ -33,9 +34,9 @@ void setup() {
   Serial.println("Success initialising trillSensor");
   trillSensor.setMode(Trill::DIFF);
   // We recommend a prescaler value of 4
-  trillSensor.setPrescaler(4);
+  trillSensor.setPrescaler(6);
   // Experiment with this value to avoid corss talk between sliders if they are position close together
-  trillSensor.setNoiseThreshold(200);
+  trillSensor.setNoiseThreshold(255);
   pinMode(motorPin, OUTPUT);
   bleKeyboard.begin();  // Start BLE keyboard
 }
