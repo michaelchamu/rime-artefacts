@@ -112,6 +112,11 @@ Ensure your SwitchBot curtain motor is connected to your home network via the Sw
 
 ---
 
+##Acknowledgements
+
+- The project is part of my PhD and is funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – 425869111 and is part of Priority Program SPP2199 Scalable Interaction Paradigms for Pervasive Computing Environments.
+- The code for the coaster was adapted from https://github.com/theleadingzero/smart-pillow
+
 ## Contribution  
 
 We welcome contributions to enhance these smart home control devices. Feel free to fork this repository, make changes, and submit a pull request.  
