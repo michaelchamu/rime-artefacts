@@ -40,7 +40,8 @@ void initWiFi() {
   //else use home network and broker
       // Print SSID and RSSI for each network found
         WiFi.mode(WIFI_STA);
-        WiFi.begin(SECRET_SSID, SECRET_PASS);
+        //WiFi.begin(SECRET_SSID, SECRET_PASS);
+        WiFi.begin(ssid, pass);
         Serial.print("Connecting to WiFi ..");
         while (WiFi.status() != WL_CONNECTED) {
           Serial.print('.');
