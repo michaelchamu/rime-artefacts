@@ -129,11 +129,11 @@ float elasticReading, edgesReading;
     Serial.println( elasticReading = analogRead(A0));
     Serial.println("-----------------------");
   pressure = bmp180.getPressure();
-  
- if (edgesReading < 12 && bmp180.getPressure() > 99000) {  
+  //adjust pressure reading depending on temperature, if its warm reduce value
+ if (edgesReading < 12 && bmp180.getPressure() > 96100) {  
      onDialIncrease();
    }
-  if(elasticReading > 550){  
+  if(elasticReading > 510){  
      onDialDecrease();
    }
     
